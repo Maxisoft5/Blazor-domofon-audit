@@ -1,0 +1,191 @@
+﻿@using ApplicationsAudit.Core.DTOs;
+@using ApplicationsAudit.Core.Helpers;
+@using ApplicationsAudit.Core.Interfaces;
+@using ApplicationsAudit.Core.Services.Events;
+@using ApplicationsAudit.Core.Validators;
+@using Microsoft.AspNetCore.Identity;
+@inject IManagerService managerService;
+@inject CreateManagerEvent CreateManagerEvent;
+
+<div class="create-client-flex-column">
+    <div class="create-application-container-flex-row">
+        <div class="create-client-info">
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Роль<span style="color:red">*</span></RadzenText>
+            <RadzenDropDown AllowClear="true" @bind-Value=selectedRole
+                            LoadData=@LoadRoles AllowFiltering="true"
+                            Disabled="rolesDisabled"
+                            Data=@roles TextProperty="Role" ValueProprty="Id" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Имя<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="manager.ManagerInfo.ContactInfo.FirstName" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Фамилия<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="manager.ManagerInfo.ContactInfo.LastName" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Отчество</RadzenText>
+            <RadzenTextBox @bind-Value="manager.ManagerInfo.ContactInfo.Patronymic" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер мобильного 1</RadzenText>
+            <RadzenTextBox Placeholder="без кода страны" @bind-Value="manager.ManagerInfo.ContactInfo.MobilePhone1" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер мобильного 2</RadzenText>
+            <RadzenTextBox Placeholder="без кода страны" @bind-Value="manager.ManagerInfo.ContactInfo.MobilePhone2" class="w-100" />
+        </div>
+        <div class="create-client-address">
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Почта<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="manager.ManagerInfo.ContactInfo.Email" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Пароль<span style="color:red">*</span></RadzenText>
+            <div style="margin-bottom: 10px">
+                <RadzenCheckBox onclick="@(() => OnGeneratePassword())" @bind-Value="@passwordGenerated" Name="Generate" />
+                <RadzenLabel Text="Сгенерировать пароль" Component="Generate" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <RadzenTextBox @bind-Value="manager.ManagerInfo.Password" class="w-100" Style="margin-bottom:10px" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Рабочие дни<span style="color:red">*</span></RadzenText>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Monday" Name="Monday" />
+                <RadzenLabel Text="Понедельник" Component="Monday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Tuesday" Name="Tuesday" />
+                <RadzenLabel Text="Вторник" Component="Tuesday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Wednesday" Name="Wednesday" />
+                <RadzenLabel Text="Среда" Component="Wednesday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Thursday" Name="Thursday" />
+                <RadzenLabel Text="Четверг" Component="Thursday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Friday" Name="Friday" />
+                <RadzenLabel Text="Пятница" Component="Friday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+        </div>
+    </div>
+    @if (validationErrors.Any())
+    {
+        <div style="display: flex; flex-direction: row; margin-top: 20px; justify-content: center">
+            <p style="color:red; ">@errorMessage</p>
+        </div>
+    }
+    <div style="display: flex; flex-direction: row; margin-top: 20px; justify-content: center">
+        <RadzenButton Click="@(() => Create())" Text="Создать" Icon="check_circle" ButtonStyle="ButtonStyle.Success" />
+    </div>
+</div>
+
+@code {
+    ManagerDTO manager = new ManagerDTO()
+    {
+        ManagerInfo = new ManagerInfoDTO()
+        {
+            ContactInfo = new ContactInfoDTO()
+        }
+    };
+    WorkingTimeDTO workingTime = new WorkingTimeDTO();
+    ManagerRoleDTO? selectedRole = null;
+    List<ManagerRoleDTO> roles = new List<ManagerRoleDTO>();
+    bool rolesDisabled = true;
+    bool passwordGenerated;
+    string errorMessage = "";
+    List<string> validationErrors = new List<string>();
+
+    async void Create()
+    {
+        manager.WorkingTime = workingTime;
+        if (selectedRole == null)
+        {
+            validationErrors.Add("Выберите роль");
+            errorMessage = "Выберите роль";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+        else
+        {
+            manager.RoleId = selectedRole.Id;
+        }
+        ValidateManager();
+        if (!validationErrors.Any())
+        {
+            var created = await managerService.Register(manager);
+            CreateManagerEvent.NotifyCreateManager(this, created);
+        } 
+        else
+        {
+            errorMessage = string.Join(", ", validationErrors);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void ValidateManager()
+    {
+        validationErrors = new List<string>();
+        var managerInfoValidator = new ManagerInfoValidator();
+        var contactInfoValidator = new ContactInfoValidator();
+
+        var managerInfoRes = managerInfoValidator.Validate(manager.ManagerInfo);
+        if (!managerInfoRes.IsValid)
+        {
+            validationErrors.AddRange(managerInfoRes.Errors.Select(x => x.ErrorMessage));
+            return;
+        }
+
+        var contactInfoRes = contactInfoValidator.Validate(manager.ManagerInfo.ContactInfo);
+        if (!contactInfoRes.IsValid)
+        {
+            validationErrors.AddRange(contactInfoRes.Errors.Select(x => x.ErrorMessage));
+            return;
+        }
+
+        if (!workingTime.Monday && !workingTime.Tuesday && !workingTime.Wednesday 
+            && !workingTime.Thursday && !workingTime.Friday && !workingTime.Saturday
+            && !workingTime.Sunday)
+        {
+            validationErrors.Add("Выберите хотя бы один рабочий день");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(manager.ManagerInfo.ContactInfo.MobilePhone1) && 
+            string.IsNullOrEmpty(manager.ManagerInfo.ContactInfo.MobilePhone2))
+        {
+            validationErrors.Add("Добавьте хотя бы один мобильный номер телефона");
+            return;
+        }
+
+        if( (!string.IsNullOrEmpty(manager.ManagerInfo.ContactInfo.MobilePhone1) 
+            && !PhonesHelper.IsValid(manager.ManagerInfo.ContactInfo.MobilePhone1)) ||
+            (!string.IsNullOrEmpty(manager.ManagerInfo.ContactInfo.MobilePhone2)
+            && !PhonesHelper.IsValid(manager.ManagerInfo.ContactInfo.MobilePhone2)) )
+        {
+            validationErrors.Add("Номера телефона должен содержать только цифры и длинной 10 символов");
+            return;
+        }
+
+    }
+
+    void OnGeneratePassword()
+    {
+        if (passwordGenerated)
+        {
+            manager.ManagerInfo.Password = PasswordHelper.GenerateRandomPassword();
+        } else
+        {
+            manager.ManagerInfo.Password = "";
+        }
+    }
+
+    protected override async void OnInitialized()
+    {
+        var loadedRoles = await managerService.GetRolesForDropDown();
+        roles = loadedRoles.ToList();
+        rolesDisabled = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void LoadRoles(LoadDataArgs args)
+    {
+        if (args.Filter != null)
+        {
+            var filteredRoles = roles.Where(x => x.Id.ToString().Contains(args.Filter));
+            roles = filteredRoles.ToList();
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+
+}

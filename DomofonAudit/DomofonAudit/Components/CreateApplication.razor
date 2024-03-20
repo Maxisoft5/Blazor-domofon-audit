@@ -1,0 +1,328 @@
+﻿@using ApplicationsAudit.Core.DTOs
+@using ApplicationsAudit.Core.Interfaces;
+@using ApplicationsAudit.Core.Services.Events;
+@using ApplicationsAudit.Core.Services;
+@using ApplicationsAudit.Domain.Managers
+@inject DialogService DialogService;
+@inject CreateClientEvent CreateClientEventService;
+@inject ApplicationEvents CreateApplicationEvent;
+@inject CreateMasterEvent CreateMasterEvent;
+@inject CreateDistrictEvent CreateDistrictEventService;
+@inject CreateManagerEvent CreateManagerEventService;
+@inject IClientsService ClientsService;
+@inject IMasterService MasterService;
+@inject IDistrictsService DistrictsService;
+@inject IHttpContextAccessor HttpContextAccessor;
+@inject IManagerService ManagerService;
+@inject IApplicationService ApplicationService;
+
+@implements IDisposable;
+
+<div class="create-application-flex-column">
+    <div class="create-application-container-flex-row">
+        <div class="create-application-info">
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Краткое описание</RadzenText>
+            <RadzenTextBox @bind-Value=title class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Детальное Описание</RadzenText>
+            <RadzenTextArea @bind-Value=description class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Комментарий</RadzenText>
+            <RadzenTextArea @bind-Value=comment class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Клиент<small> (поиск по части полного имени)</small></RadzenText>
+            <div style="display:flex; flex-direction: row;">
+                <RadzenDropDown AllowClear="true" @bind-Value=selectedClient
+                                LoadData=@LoadClients AllowFiltering="true" Disabled="clientsDisabled"
+                                Data=@clientsDropDown TextProperty="ContactInfo.FullName" ValueProprty="ContactInfo.FullName"
+                                Style="margin-right: 10px" />
+                <RadzenButton Click="@( async () => await CreateClientDialog())" Icon="add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Medium" />
+            </div>
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Мастер</RadzenText>
+            <div style="display:flex; flex-direction: row;">
+                <RadzenDropDown AllowClear="true" @bind-Value=selectedMaster
+                                LoadData=@LoadMasters AllowFiltering="true"
+                                Disabled="mastersDisabled"
+                                Data=@mastersDropDown TextProperty="MasterInfo.ContactInfo.FullName" 
+                                ValueProprty="Id"
+                                Style="margin-right: 10px" />
+                <RadzenButton Click="@( async () => await CreateMasterDialog())" Icon="add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Medium" />
+            </div>
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Ответственный менеджер</RadzenText>
+            <div style="display:flex; flex-direction: row;">
+                <RadzenDropDown AllowClear="true" @bind-Value=selectedManager
+                                LoadData=@LoadManagers AllowFiltering="true"
+                                Disabled="managersDisabled"
+                                Data=@managersDropDown TextProperty="ManagerInfo.ContactInfo.FullName"
+                                ValueProprty="Id"
+                                Style="margin-right: 10px" />
+                <RadzenButton Click="@( async () => await CreateManagerDialog())" Icon="add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Medium" />
+            </div>
+        </div>
+        <div class="create-application-assign-info">
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Участок<span style="color:red">*</span></RadzenText>
+            <div style="display:flex; flex-direction: row;">
+                <RadzenDropDown AllowClear="true" @bind-Value=selectedDistrict
+                                LoadData=@LoadDistricts AllowFiltering="true"
+                                Disabled="districtsDisabled"
+                                Data=@districtsDropDownList TextProperty="Name" ValueProprty="Name"
+                                Style="margin-right: 10px" />
+                <RadzenButton Click="@(async () => await CreateDistrictDialog())" Icon="add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Medium" />
+            </div>
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Улица<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="addressInfo.Street" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Город</RadzenText>
+            <RadzenTextBox Disabled="true" @bind-Value="addressInfo.City" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Регион</RadzenText>
+            <RadzenTextBox Disabled="true" @bind-Value="addressInfo.Region" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер дома<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="addressInfo.HomeNumber" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер подъезда<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="addressInfo.EntranceNumber" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер квартиры<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="addressInfo.FlatNumber" class="w-100" />
+        </div>
+    </div>
+    <div style="display: flex; flex-direction: row; margin-top: 20px; justify-content: center">
+        <RadzenButton Click="@(() => Create())" Style="margin-right: 20px" Text="Создать" Icon="check_circle" ButtonStyle="ButtonStyle.Success" />
+    </div>
+
+</div>
+
+@code {
+    string title = "";
+    string description = "";
+    string comment = "";
+
+    List<ClientDTO> clients = new List<ClientDTO>();
+    List<ClientDTO> clientsDropDown = new List<ClientDTO>();
+
+    bool managersDisabled = true;
+    List<ManagerDTO> managers = new List<ManagerDTO>();
+    List<ManagerDTO> managersDropDown = new List<ManagerDTO>();
+
+    bool clientsDisabled = true;
+    List<MasterDTO> masters = new List<MasterDTO>();
+    List<MasterDTO> mastersDropDown = new List<MasterDTO>();
+    bool mastersDisabled = true;
+    ClientDTO selectedClient;
+    MasterDTO selectedMaster;
+    DistrictDTO selectedDistrict;
+    ManagerDTO selectedManager;
+
+    bool districtsDisabled = true;
+    AddressInfoDTO addressInfo = new AddressInfoDTO()
+    {
+        Region = "Воронежская область",
+        City = "Воронеж"
+    };
+
+    List<DistrictDTO> districts = new List<DistrictDTO>();
+    List<DistrictDTO> districtsDropDownList = new List<DistrictDTO>();
+    Manager? currentManager = null;
+
+    protected override async void OnInitialized()
+    {
+        CreateClientEventService.CreateClient -= CreateClientHandler;
+        CreateClientEventService.CreateClient += CreateClientHandler;
+        CreateMasterEvent.CreateMaster -= CreateMasterHandler;
+        CreateMasterEvent.CreateMaster += CreateMasterHandler;
+        CreateDistrictEventService.CreateDistrict -= DistrictHandler;
+        CreateDistrictEventService.CreateDistrict += DistrictHandler;
+        CreateManagerEventService.CreateManager -= CreateManagerEventHandler;
+        CreateManagerEventService.CreateManager += CreateManagerEventHandler;
+
+        var allDistricts = await DistrictsService.GetAll();
+        var listDistricts = allDistricts.ToList();
+        var allMasters = await MasterService.GetAll();
+        var mastersList = allMasters.ToList();
+        var clients = await ClientsService.LoadClientsForDropDown("");
+        clientsDropDown = clients.ToList();
+        clientsDisabled = false;
+        managersDisabled = true;
+        var managersList = await ManagerService.GetForDropDown();
+        managersDropDown = new List<ManagerDTO>(managersList);
+        managers = new List<ManagerDTO>(managersList);
+        managersDisabled = false;
+        mastersDisabled = true;
+        masters = new List<MasterDTO>(mastersList);
+        mastersDropDown = new List<MasterDTO>(mastersList);
+        mastersDisabled = false;
+        districtsDisabled = true;
+        districtsDropDownList = new List<DistrictDTO>(listDistricts);
+        districts = new List<DistrictDTO>(listDistricts);
+        districtsDisabled = false;
+        currentManager = await ManagerService.GetIfAuthorized(HttpContextAccessor.HttpContext.User);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        CreateClientEventService.CreateClient -= CreateClientHandler;
+        CreateMasterEvent.CreateMaster -= CreateMasterHandler;
+        CreateDistrictEventService.CreateDistrict -= DistrictHandler;
+    }
+
+    public async Task CreateDistrictDialog()
+    {
+        var createDistrict = await DialogService.OpenAsync<CreateDistrict>("Добавить участок", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-client-dialog",
+            Style = "max-width: 500px; max-height: 300px; width: 90%; height: 93%; display:flex; justify-content:center"
+        });
+    }
+
+    private void DistrictHandler(object sender, DistrictDTO districtDTO)
+    {
+        selectedDistrict = districtDTO;
+        districts.Add(districtDTO);
+        districtsDropDownList.Add(districtDTO);
+        DialogService.Close();
+    }
+
+    private void CreateClientHandler(object sender, ClientDTO client)
+    {
+        selectedClient = client;
+        clients.Add(client);
+        clientsDropDown.Add(client);
+        DialogService.Close();
+    }
+
+    private void CreateManagerEventHandler(object sender, ManagerDTO manager)
+    {
+        selectedManager = manager;
+        managers.Add(manager);
+        managersDropDown.Add(manager);
+        DialogService.Close();
+    }
+
+    private void CreateMasterHandler(object sender, MasterDTO master)
+    {
+        selectedMaster = master;
+        masters.Add(master);
+        mastersDropDown.Add(master);
+        DialogService.Close();
+    }
+
+    public async void LoadDistricts(LoadDataArgs args)
+    {
+        if (args.Filter != null)
+        {
+            var filteredDistricts = districts.Where(x => x.Id.ToString().Contains(args.Filter));
+            districtsDropDownList = filteredDistricts.ToList();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async void LoadClients(LoadDataArgs args)
+    {
+        if (args.Filter != null)
+        {
+            var clients = await ClientsService.LoadClientsForDropDown(args.Filter);
+            clientsDropDown = clients.ToList();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async void LoadMasters(LoadDataArgs args)
+    {
+        if (args.Filter != null)
+        {
+            var filteredMaster = masters.Where(x => x.Id.ToString().Contains(args.Filter));
+            mastersDropDown = filteredMaster.ToList();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async void LoadManagers(LoadDataArgs args)
+    {
+        if (args.Filter != null)
+        {
+            var filteredManagers = managers.Where(x => x.Id.ToString().Contains(args.Filter));
+            managersDropDown = filteredManagers.ToList();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task CreateManagerDialog()
+    {
+        await DialogService.OpenAsync<CreateManager>("Добавить менеджера", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-application-dialog",
+            Style = "max-width: 900px; max-height: 910px; width: 90%; height: 93%;"
+        });
+    }
+
+    public async void Create()
+    {
+        var application = new ApplicationDTO()
+        {
+            RequestedBy = selectedClient,
+            AssignedMaster = selectedMaster,
+            AssignedManager = selectedManager ?? new ManagerDTO()
+            {
+                Id = currentManager.Id
+            },
+            Title = title,
+            Description = description,
+            Comments = new List<ApplicationCommentDTO>(),
+            Address = new ApplicationsAudit.Domain.Applications.ApplicationAddress()
+            {
+                DistrictId = selectedDistrict.Id,
+                Address = new ApplicationsAudit.Domain.Address.AddressInfo()
+                {
+                    City = addressInfo.City,
+                    Street = addressInfo.Street,
+                    EntranceNumber = int.Parse(addressInfo.EntranceNumber),
+                    FlatNumber = int.Parse(addressInfo.FlatNumber),
+                    HomeNumber = addressInfo.HomeNumber,
+                    Region = addressInfo.Region
+                }
+            }
+        };
+        if (!string.IsNullOrEmpty(comment))
+        {
+            application.Comments.Add(new ApplicationCommentDTO()
+            {
+                AddedAt = DateTime.UtcNow,
+                Comment = comment,
+                CreatedBy = currentManager?.ManagerInfo?.ContactInfo?.FirstName + " " + currentManager?.ManagerInfo?.ContactInfo?.LastName,
+            });
+        }
+
+        var result = await ApplicationService.Create(application);
+
+        CreateApplicationEvent.NotifyCreateApplication(this, result);
+    }
+
+    public async Task CreateMasterDialog()
+    {
+        var createMaster = await DialogService.OpenAsync<CreateMaster>("Добавить мастера", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-client-dialog",
+            Style = "max-width: 900px; max-height: 910px; width: 90%; height: 93%; display:flex; justify-content:center"
+        });
+    }
+
+    public async Task CreateClientDialog()
+    {
+        var createClient = await DialogService.OpenAsync<CreateClient>("Добавить клиента", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-client-dialog",
+            Style = "max-width: 900px; max-height: 910px; width: 90%; height: 93%; display:flex; justify-content:center"
+        });
+    }
+}

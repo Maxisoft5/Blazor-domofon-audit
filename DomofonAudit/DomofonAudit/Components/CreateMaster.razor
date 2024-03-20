@@ -1,0 +1,140 @@
+﻿@using ApplicationsAudit.Core.DTOs;
+@using ApplicationsAudit.Core.Interfaces;
+@using ApplicationsAudit.Core.Services.Events;
+@inject DialogService DialogService;
+@inject CreateDistrictEvent CreateDistrictEventService;
+@inject IDistrictsService DistrictsService;
+@inject IMasterService MastersService;
+@inject CreateMasterEvent CreateMasterEvent;
+@implements IDisposable;
+
+<div class="create-client-flex-column">
+    <div class="create-application-container-flex-row">
+        <div class="create-client-info">
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Имя<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="master.MasterInfo.ContactInfo.FirstName" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Фамилия<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="master.MasterInfo.ContactInfo.LastName" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Отчество</RadzenText>
+            <RadzenTextBox @bind-Value="master.MasterInfo.ContactInfo.Patronymic" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Почта</RadzenText>
+            <RadzenTextBox @bind-Value="master.MasterInfo.ContactInfo.Email" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер мобильного 1<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="master.MasterInfo.ContactInfo.MobilePhone1" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер мобильного 2</RadzenText>
+            <RadzenTextBox @bind-Value="master.MasterInfo.ContactInfo.MobilePhone2" class="w-100" />
+        </div>
+        <div class="create-client-address">
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Рабочие участки<span style="color:red">*</span></RadzenText>
+            <div style="display:flex; flex-direction: row;">
+                <RadzenDropDown AllowClear="true" @bind-Value=selectedDistricts
+                                LoadData=@LoadDistricts AllowFiltering="true"
+                                Disabled="districtsDisabled"
+                                Multiple=true
+                                Data=@districtsDropDownList TextProperty="Name" ValueProprty="Name"
+                                Style="margin-right: 10px" />
+                <RadzenButton Click="@(async () => await CreateDistrictDialog())" Icon="add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Medium" />
+            </div>
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Рабочие дни<span style="color:red">*</span></RadzenText>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Monday" Name="Monday" />
+                <RadzenLabel Text="Понедельник" Component="Monday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Tuesday" Name="Tuesday" />
+                <RadzenLabel Text="Вторник" Component="Tuesday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Wednesday" Name="Wednesday" />
+                <RadzenLabel Text="Среда" Component="Wednesday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Thursday" Name="Thursday" />
+                <RadzenLabel Text="Четверг" Component="Thursday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Friday" Name="Friday" />
+                <RadzenLabel Text="Пятница" Component="Friday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Saturday" Name="Saturday" />
+                <RadzenLabel Text="Суббота" Component="Saturday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+            <div>
+                <RadzenCheckBox @bind-Value="@workingTime.Sunday" Name="Sunday" />
+                <RadzenLabel Text="Воскресенье" Component="Sunday" Style="margin-left: 8px; vertical-align: middle;" />
+            </div>
+        </div>
+    </div>
+    <div style="display: flex; flex-direction: row; margin-top: 20px; justify-content: center">
+        <RadzenButton Click="@(() => Create())" Style="margin-right: 20px" Text="Создать" Icon="check_circle" ButtonStyle="ButtonStyle.Success" />
+    </div>
+</div>
+
+@code {
+    MasterDTO master = new MasterDTO()
+    {
+        MasterInfo = new MasterInfoDTO()
+        {
+            ContactInfo = new ContactInfoDTO()
+        }
+    };
+    WorkingTimeDTO workingTime = new WorkingTimeDTO();
+    List<DistrictDTO> districts = new List<DistrictDTO>();
+    List<DistrictDTO> districtsDropDownList = new List<DistrictDTO>();
+    List<DistrictDTO> selectedDistricts = new List<DistrictDTO>();
+    bool districtsDisabled = true;
+
+    protected override async void OnInitialized()
+    {
+        CreateDistrictEventService.CreateDistrict -= DistrictHandler;
+        CreateDistrictEventService.CreateDistrict += DistrictHandler;
+        var allDistricts = await DistrictsService.GetAll();
+        var list = allDistricts.ToList();
+        districtsDropDownList = list;
+        districts = list;
+        districtsDisabled = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async void Create()
+    {
+        workingTime.IsTimeActive = true;
+        master.WorkingTime = workingTime;
+        master = await MastersService.Create(master, selectedDistricts.Select(x => x.Id));
+        CreateMasterEvent.NotifyCreateMaster(this, master);
+    }
+
+    public async Task CreateDistrictDialog()
+    {
+        var createDistrict = await DialogService.OpenAsync<CreateDistrict>("Добавить участок", options: new DialogOptions()
+            {
+                ShowClose = true,
+                Draggable = false,
+                CloseDialogOnEsc = false,
+                ShowTitle = true,
+                CssClass = "add-client-dialog",
+                Style = "max-width: 500px; max-height: 300px; width: 90%; height: 93%; display:flex; justify-content:center"
+            });
+    }
+
+    public void Dispose()
+    {
+        CreateDistrictEventService.CreateDistrict -= DistrictHandler;
+    }
+
+    private void DistrictHandler(object sender, DistrictDTO districtDTO)
+    {
+        selectedDistricts.Add(districtDTO);
+        districts.Add(districtDTO);
+        districtsDropDownList.Add(districtDTO);
+        DialogService.Close();
+    }
+
+    public void LoadDistricts(LoadDataArgs args)
+    {
+        
+    }
+
+
+}

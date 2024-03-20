@@ -1,0 +1,242 @@
+﻿@page "/application-board";
+@using ApplicationsAudit.Core.DTOs;
+@using ApplicationsAudit.Core.Interfaces;
+@using ApplicationsAudit.Core.Services.Events;
+@using DomofonAudit.Components
+@using Radzen;
+@inject IDashboardService dashBoardService;
+@inject ApplicationEvents CreateApplicationEvent;
+@inject IApplicationService ApplicationService;
+@inject DialogService DialogService;
+@inject IJSRuntime JS;
+
+@code {
+    List<ApplicationDTO> applications = new List<ApplicationDTO>();
+    List<ApplicationDTO> notAssignedApplications = new List<ApplicationDTO>();
+    List<ApplicationDTO> assignedApplications = new List<ApplicationDTO>();
+    List<ApplicationDTO> completedApplications = new List<ApplicationDTO>();
+    List<ApplicationDTO> rejectedApplications = new List<ApplicationDTO>();
+    public bool IsLoading = false;
+
+    protected override async void OnInitialized()
+    {
+        CreateApplicationEvent.CreateApplication += async (sender, application) =>
+        {
+            switch (application.Status)
+            {
+                case ApplicationsAudit.Domain.Applications.ApplicationStatus.ReadyForAssign:
+                {
+                    notAssignedApplications.Add(application);
+                    break;
+                }
+                case ApplicationsAudit.Domain.Applications.ApplicationStatus.Assigned:
+                {
+                    assignedApplications.Add(application);
+                    break;
+                }
+                case ApplicationsAudit.Domain.Applications.ApplicationStatus.Resolved:
+                {
+                    completedApplications.Add(application);
+                    break;
+                }
+                case ApplicationsAudit.Domain.Applications.ApplicationStatus.Rejected:
+                {
+                    rejectedApplications.Add(application);
+                    break;
+                }
+            }
+
+            await InvokeAsync(StateHasChanged);
+        };
+
+        CreateApplicationEvent.UpdateApplication += async (sender, application) =>
+        {
+            var exists = notAssignedApplications.Find(x => x.Id == application.Id);
+            if (exists != null)
+            {
+                notAssignedApplications.Remove(exists);
+            }
+            exists = assignedApplications.Find(x => x.Id == application.Id);
+            if (exists != null)
+            {
+                assignedApplications.Remove(exists);
+            }
+            exists = completedApplications.Find(x => x.Id == application.Id);
+            if (exists != null)
+            {
+                completedApplications.Remove(exists);
+            }
+            exists = rejectedApplications.Find(x => x.Id == application.Id);
+            if (exists != null)
+            {
+                rejectedApplications.Remove(exists);
+            }
+            switch (application.Status)
+            {
+                case ApplicationsAudit.Domain.Applications.ApplicationStatus.ReadyForAssign:
+                {
+                    notAssignedApplications.Add(application);
+                    break;
+                }
+                case ApplicationsAudit.Domain.Applications.ApplicationStatus.Assigned:
+                {
+                    assignedApplications.Add(application);
+                    break;
+                }
+                case ApplicationsAudit.Domain.Applications.ApplicationStatus.Resolved:
+                {
+                    completedApplications.Add(application);
+                    break;
+                }
+                case ApplicationsAudit.Domain.Applications.ApplicationStatus.Rejected:
+                {
+                    rejectedApplications.Add(application);
+                    break;
+                }
+            }
+
+            await InvokeAsync(StateHasChanged);
+        };
+    }
+
+    private DotNetObjectReference<Dashboard>? dotNetHelper;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetHelper = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("Helpers.setDotNetHelper", dotNetHelper);
+            var applications = await ApplicationService.GetApplications();
+
+            assignedApplications = applications.Where(x => x.Status 
+                == ApplicationsAudit.Domain.Applications.ApplicationStatus.Assigned).ToList();
+            notAssignedApplications = applications.Where(x => x.Status 
+                == ApplicationsAudit.Domain.Applications.ApplicationStatus.ReadyForAssign).ToList();
+            completedApplications = applications.Where(x => x.Status 
+                == ApplicationsAudit.Domain.Applications.ApplicationStatus.Resolved).ToList();
+            rejectedApplications = applications.Where(x => x.Status 
+                == ApplicationsAudit.Domain.Applications.ApplicationStatus.Rejected).ToList();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task OpenApplication(Guid id)
+    {
+        var openApplicationParams = new Dictionary<string, object>();
+
+        var application = await ApplicationService.GetById(id);
+
+        openApplicationParams.Add("application", application);
+
+        var createDialog = await DialogService.OpenAsync<ViewApplication>("Просмотр заявки", 
+        options: new DialogOptions()
+            {
+                ShowClose = true,
+                Draggable = false,
+                CloseDialogOnEsc = false,
+                ShowTitle = true,
+                CssClass = "add-application-dialog",
+                Style = "max-width: 1500px; max-height: 810px; width: 90%; height: 75%;"
+            }, parameters: openApplicationParams);
+    }
+
+    [JSInvokable("ChangeLoadingDashboard")]
+    public async Task ChangeLoadingDashboard(bool value)
+    {
+        IsLoading = value;
+        await Task.Delay(500);
+        await InvokeAsync(StateHasChanged);
+    }
+}
+
+<link href="dist/style.css" rel="stylesheet" />
+<style>
+    .vl {
+        border-left: 2px solid gray;
+        height: auto;
+    }
+</style>
+@if (!IsLoading)
+{
+    <div style="display:flex; flex-direction: row">
+        <div class="application-card-container">
+            <h4 style="margin-left: auto; margin-right: auto">Not Assigned</h4>
+            <div class="notAssignedColumn">
+                @foreach (var notAssign in notAssignedApplications)
+                {
+                    <div class="card application-card">
+                        <div class="hided">@notAssign.Id</div>
+                        <div class="card-body">
+                            <h5 class="card-title">@notAssign.Title</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">@notAssign.CreatedAt</h6>
+                            <p class="card-text">@notAssign.Description</p>
+                            <a onclick="@(() => OpenApplication(notAssign.Id))" class="card-link cursort-pointer">Открыть информацию</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="vl"></div>
+        <div class="application-card-container">
+            <h4 style="margin-left:auto; margin-right: auto">Assigned</h4>
+            <div class="assignedColumn">
+                @foreach (var assigned in assignedApplications)
+                {
+                    <div class="card application-card">
+                        <div class="hided">@assigned.Id</div>
+                        <div class="card-body">
+                            <h5 class="card-title">@assigned.Title</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">@assigned.CreatedAt</h6>
+                            <p class="card-text">@assigned.Description</p>
+                            <a onclick="@(() => OpenApplication(assigned.Id))" class="card-link cursort-pointer">Открыть информацию</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="vl"></div>
+        <div class="application-card-container">
+            <h4 style="margin-left:auto; margin-right: auto">Completed</h4>
+            <div class="completedColumn">
+                @foreach (var completedAssign in completedApplications)
+                {
+                    <div class="card application-card">
+                        <div class="hided">@completedAssign.Id</div>
+                        <div class="card-body">
+                            <h5 class="card-title">@completedAssign.Title</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">@completedAssign.CreatedAt</h6>
+                            <p class="card-text">@completedAssign.Description</p>
+                            <a onclick="@(() => OpenApplication(completedAssign.Id))" class="card-link cursort-pointer">Открыть информацию</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="vl"></div>
+        <div class="application-card-container">
+            <h4 style="margin-left:auto; margin-right: auto">Rejected</h4>
+            <div class="closedColumn">
+                @foreach (var rejectedAssign in rejectedApplications)
+                {
+                    <div class="card application-card">
+                        <div class="hided">@rejectedAssign.Id</div>
+                        <div class="card-body">
+                            <h5 class="card-title">@rejectedAssign.Title</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">@rejectedAssign.CreatedAt</h6>
+                            <p class="card-text">@rejectedAssign.Description</p>
+                            <a onclick="@(() => OpenApplication(rejectedAssign.Id))" class="card-link cursort-pointer">Открыть информацию</a>
+                        </div>
+                    </div>
+                }
+            </div>
+            </div>
+    </div>
+} else {
+        <RadzenProgressBarCircular Style="margin:auto" ShowValue="true" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large">
+            <Template><small style="font-size:12px">Загрузка...</small></Template>
+        </RadzenProgressBarCircular>
+}
+
+
+<script src="dist/scripts.bundle.js"></script>

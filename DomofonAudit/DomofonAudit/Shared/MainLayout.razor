@@ -1,0 +1,120 @@
+﻿@using ApplicationsAudit.Core.Constants;
+@using ApplicationsAudit.Core.DTOs;
+@using ApplicationsAudit.Core.Interfaces;
+@using ApplicationsAudit.Core.Services.Events;
+@using ApplicationsAudit.Domain.Managers;
+@using DomofonAudit.Components;
+@using DomofonAudit.Pages;
+
+@inherits LayoutComponentBase;
+@inject IDashboardService dashBoardService;
+@inject DialogService DialogService;
+@inject ApplicationEvents CreateApplicationEvent;
+@inject NavigationManager NavigationManager;
+@inject IManagerService ManagerService;
+@inject IHttpContextAccessor HttpContextAccessor;
+@inject SignInEvent SignInEvent;
+
+<PageTitle>DomofonAudit</PageTitle>
+<link href="dist/style.css" rel="stylesheet" />
+<RadzenDialog />
+<RadzenLayout>
+    <RadzenHeader>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0">
+            <RadzenSidebarToggle Click="@(() =>sidebarExpanded = !sidebarExpanded)" />
+                @if (currentManager != null) {
+                    <RadzenLabel Text="@currentPath" Style="margin-right: 70px; font-size: 20px"></RadzenLabel>
+                     @if(currentPath == "Доска") {
+                        <RadzenButton Click="@(async () => await OpenApplicationCreateDialog())" Text="Добавить заявку" Icon="add" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Small" />
+                     }
+                     <RadzenButton Click="@(async () => await SignOut())" Text="Выйти" Icon="exit_to_app" Style="margin-left: 20px;" ButtonStyle="ButtonStyle.Dark" Size="ButtonSize.Small" />
+                }
+        </RadzenStack>
+    </RadzenHeader>
+    <RadzenSidebar Style="max-width: 150px" @bind-Expanded="@sidebarExpanded" Responsive="true">
+        <RadzenPanelMenu DisplayStyle="MenuItemDisplayStyle.IconAndText" ShowArrow="true">
+            @if (currentManager != null)
+            {
+                <RadzenPanelMenuItem Text="Заявки" Icon="assignment">
+                    <RadzenPanelMenuItem Click="@(() => currentPath = "Доска")" Text="Доска" Path="application-board" Icon="dashboard"></RadzenPanelMenuItem>
+                    <RadzenPanelMenuItem Click="@(() => currentPath = "Таблица")" Text="Таблица" Path="applications-table" Icon="date_range"></RadzenPanelMenuItem>
+                </RadzenPanelMenuItem>
+            }
+            @if (currentManager != null)
+            {
+                <RadzenPanelMenuItem Path="profile" Click="@(() => currentPath = "Профиль")" Text="Профиль" Icon="account_circle">
+                </RadzenPanelMenuItem>
+            }
+            @if (HttpContextAccessor?.HttpContext?.User != null 
+                && HttpContextAccessor.HttpContext.User.IsInRole(ManagersConstants.AdminRoleName))
+            {
+                <RadzenPanelMenuItem Text="Менеджеры" Path="managers" Icon="face">
+                </RadzenPanelMenuItem>
+            }
+        </RadzenPanelMenu>
+    </RadzenSidebar>
+    <RadzenBody id="body-content" Style="margin:40px">
+            @Body
+    </RadzenBody>
+    <RadzenFooter>
+        
+    </RadzenFooter>
+</RadzenLayout>
+
+<style>
+    .vl {
+        border-left: 2px solid gray;
+        height: auto;
+    }
+</style>
+
+@code {
+
+    public Manager? currentManager = null;
+
+    bool sidebarExpanded;
+    string currentPath = "Доска";
+
+    protected override async void OnInitialized()
+    {
+        CreateApplicationEvent.CreateApplication -= CreateEvent;
+        SignInEvent.OnSignIn -= SignInHandler;
+        CreateApplicationEvent.CreateApplication += CreateEvent;
+        SignInEvent.OnSignIn += SignInHandler;
+        if (HttpContextAccessor?.HttpContext?.User != null && currentManager == null)
+        {
+            currentManager = await ManagerService.GetIfAuthorized(HttpContextAccessor.HttpContext.User);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CreateEvent(object sender, ApplicationDTO application)
+    {
+        DialogService.Close();
+    }
+
+    private async void SignInHandler(object sender, Manager manager)
+    {
+        currentManager = manager;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task OpenApplicationCreateDialog()
+    {
+        var createDialog = await DialogService.OpenAsync<CreateApplication>("Добавить заявку", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-application-dialog",
+            Style = "max-width: 900px; max-height: 910px; width: 90%; height: 93%;"
+        } );
+    }
+
+    public async Task SignOut()
+    {
+        NavigationManager.NavigateTo("login?logout=true", true, true);
+    }
+
+}

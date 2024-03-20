@@ -1,0 +1,152 @@
+﻿@using ApplicationsAudit.Core.DTOs;
+@using ApplicationsAudit.Core.Interfaces;
+@using ApplicationsAudit.Core.Services.Events;
+@inject DialogService DialogService;
+@inject CreateDistrictEvent CreateDistrictEventService;
+@inject CreateClientEvent CreateClientEventService;
+@inject IDistrictsService DistrictsService;
+@inject IClientsService ClientService;
+@implements IDisposable;
+
+<div class="create-client-flex-column">
+    <div class="create-application-container-flex-row">
+        <div class="create-client-info">
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Имя<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="contactInfo.FirstName" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Фамилия<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="contactInfo.LastName" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Отчество</RadzenText>
+            <RadzenTextBox @bind-Value="contactInfo.Patronymic" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Почта</RadzenText>
+            <RadzenTextBox @bind-Value="contactInfo.Email" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер мобильного 1</RadzenText>
+            <RadzenTextBox @bind-Value="contactInfo.MobilePhone1" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер мобильного 2</RadzenText>
+            <RadzenTextBox @bind-Value="contactInfo.MobilePhone2" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Домашний телефон</RadzenText>
+            <RadzenTextBox @bind-Value="contactInfo.HomePhone" class="w-100" />
+        </div>
+        <div class="create-client-address">
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Участок<span style="color:red">*</span></RadzenText>
+            <div style="display:flex; flex-direction: row;">
+                <RadzenDropDown AllowClear="true" @bind-Value=selectedDistrict
+                                LoadData=@LoadDistricts AllowFiltering="true"
+                                Disabled="districtsDisabled"
+                                Data=@districtsDropDownList TextProperty="Name" ValueProprty="Id"
+                                Style="margin-right: 10px" />
+                <RadzenButton Click="@(async () => await CreateDistrictDialog())" Icon="add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Medium" />
+            </div>
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Улица<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="addressInfo.Street" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Город</RadzenText>
+            <RadzenTextBox Disabled="true" @bind-Value="addressInfo.City" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Регион</RadzenText>
+            <RadzenTextBox Disabled="true" @bind-Value="addressInfo.Region" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер дома<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="addressInfo.HomeNumber" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер подъезда<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="addressInfo.EntranceNumber" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Номер квартиры<span style="color:red">*</span></RadzenText>
+            <RadzenTextBox @bind-Value="addressInfo.FlatNumber" class="w-100" />
+        </div>
+    </div>
+    <div style="display: flex; flex-direction: row; margin-top: 20px; justify-content: center">
+        <RadzenButton Click="@(async () => await Create())" Style="margin-right: 20px" Text="Создать" Icon="check_circle" ButtonStyle="ButtonStyle.Success" />
+    </div>
+
+</div>
+
+@code {
+
+    ClientDTO client;
+    ContactInfoDTO contactInfo = new ContactInfoDTO();
+    ClientAddressDTO clientAddress = new ClientAddressDTO();
+    AddressInfoDTO addressInfo = new AddressInfoDTO()
+    {
+        Region = "Воронежская область",
+        City = "Воронеж"
+    };
+    DistrictDTO selectedDistrict;
+    bool districtsDisabled = true;
+
+    List<DistrictDTO> districts = new List<DistrictDTO>();
+    List<DistrictDTO> districtsDropDownList = new List<DistrictDTO>();
+
+    protected override async void OnInitialized()
+    {
+        CreateDistrictEventService.CreateDistrict -= DistrictHandler;
+        CreateDistrictEventService.CreateDistrict += DistrictHandler;
+        var allDistricts = await DistrictsService.GetAll();
+        var list = allDistricts.ToList();
+        districtsDropDownList = list;
+        districts = list;
+        districtsDisabled = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        CreateDistrictEventService.CreateDistrict -= DistrictHandler;
+    }
+
+    private void DistrictHandler(object sender, DistrictDTO districtDTO )
+    {
+        selectedDistrict = districtDTO;
+        districts.Add(districtDTO);
+        districtsDropDownList.Add(districtDTO);
+        DialogService.Close();
+    }
+
+    public async Task Create()
+    {
+        clientAddress.District = selectedDistrict;
+        clientAddress.Address = addressInfo;
+        client = new ClientDTO()
+        {
+            Addresses = new List<ClientAddressDTO>() { clientAddress },
+            ContactInfo = contactInfo,
+            AddedDate = DateTime.UtcNow
+        };
+        await ClientService.CreateNewFromApplication(new ApplicationNewClient()
+        {
+            City = addressInfo.City,
+            District = selectedDistrict,
+            Email = contactInfo.Email,
+            FirstName = contactInfo.FirstName,
+            LastName = contactInfo.LastName,
+            Patronymic = contactInfo.Patronymic,
+            FlatNumber = addressInfo.FlatNumber,
+            HomeNumber = addressInfo.HomeNumber,
+            HomePhone = contactInfo.HomePhone,
+            MobilePhone1 = contactInfo.MobilePhone1,
+            MobilePhone2 = contactInfo.MobilePhone2,
+            Region = addressInfo.Region,
+            Street = addressInfo.Street,
+            EntranceNumber = addressInfo.EntranceNumber,
+        });
+        CreateClientEventService.NotifyCreateClient(this, client);
+    }
+
+    void LoadDistricts(LoadDataArgs args)
+    {
+        if (args.Filter != null)
+        {
+            var filteredDistricts = districts.Where(x => x.Id.ToString().Contains(args.Filter));
+            districtsDropDownList = filteredDistricts.ToList();
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task CreateDistrictDialog() 
+    {
+        var createDistrict = await DialogService.OpenAsync<CreateDistrict>("Добавить участок", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-client-dialog",
+            Style = "max-width: 500px; max-height: 300px; width: 90%; height: 93%; display:flex; justify-content:center"
+        });
+    }
+}

@@ -1,0 +1,123 @@
+﻿@using ApplicationsAudit.Core.Interfaces
+@using ApplicationsAudit.Core.Services.Events
+@using System.Text
+
+
+<RadzenCard>
+    <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Выберете один файл с форматом: @(string.Join(", ", supportedFormates))  </RadzenText>
+    <RadzenText Visible="isUploadError" TextStyle="TextStyle.Subtitle1" TagName="TagName.H3" Style="color:red">Неверный формат файла</RadzenText>
+    <div style="display:flex; flex-direction: column">
+        <RadzenUpload Icon="upload" ChooseText="" @ref="upload" Auto="false" Multiple="false"
+                        Accept=".png, .jpeg"
+                        Change="@OnChange"
+                        Url="@uploadFileUrl" 
+                        Progress=@TrackProgress
+                        Complete=@CompleteUpload />
+        <RadzenButton Visible="showUploadBtw" Text="Upload"
+                       Disabled=uploadDisabled
+                       Click=@(async args => {
+                        showUploadBtw = false;
+                        await upload.Upload();
+                      }) class="d-block mt-4" />
+    </div>
+    <RadzenProgressBar Value=@progress class="mt-4" Visible=@showProgress />
+    <RadzenButton Text="Cancel" Click=@(args => CancelUpload()) class="d-block mt-4" Visible=@showProgress />
+    <RadzenLabel Visible=@showComplete class="mt-4" Text=@completionMessage />
+    <RadzenLabel class="mt-4" Text=@bytesMessage />
+</RadzenCard>
+<div class="mt-4" style="display:flex; flex-direction:row">
+    <RadzenButton Click="() => DeleteCurrent()" Style="margin-left:10px; margin-right: 10px" Variant="Variant.Outlined" Text="Удалить текущую" />
+    <RadzenButton Click="() => DialogService.Close()" Variant="Variant.Outlined" Text="Отмена" />
+</div>
+
+@inject UploadProfileImageEvent UploadProfileImageEvent;
+@inject IContactInfoService ContactInfoService;
+@inject DialogService DialogService;
+
+@code {
+    [Parameter]
+    public int ContactInfoId { get; set; }
+    int progress;
+    bool showProgress;
+    bool showComplete;
+    bool showUploadBtw = true;
+    bool uploadDisabled = true;
+    bool isUploadError = false;
+    string? completionMessage;
+    string? bytesMessage = "";
+    bool cancelUpload = false;
+    RadzenUpload? upload;
+    string[] supportedFormates = new string[] { "png", "jpeg" };
+    string uploadFileUrl = "";
+
+    protected override async void OnInitialized()
+    {
+        uploadFileUrl = $"api/uploads/uploadProfile?concatInfoID={ContactInfoId}";
+    }
+
+    async Task OnChange(UploadChangeEventArgs args)
+    {
+        if (args.Files != null && args.Files.Any())
+        {
+            var file = args.Files.First();
+            if (string.IsNullOrWhiteSpace(file.Name) || file.Name.Split(".").Length == 1
+                 || !supportedFormates.Contains(file.Name.Split(".")[1]) ) // replace on ends with
+            {
+                uploadDisabled = true;
+                isUploadError = true;
+            } 
+            else
+            {
+                isUploadError = false;
+                uploadDisabled = false;
+            }
+        } 
+        else
+        {
+            isUploadError = false;
+            uploadDisabled = false;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+
+    async Task CompleteUpload(UploadCompleteEventArgs args)
+    {
+        if (!args.Cancelled)
+            completionMessage = "Upload Complete!";
+        else
+            completionMessage = "Upload Cancelled!";
+
+        showProgress = false;
+        showComplete = true;
+        var info = await ContactInfoService.GetById(ContactInfoId);
+        UploadProfileImageEvent.NotifyUpload(this, info.ProfileImage);
+        DialogService.Close();
+    }
+
+    async void TrackProgress(UploadProgressArgs args)
+    {
+        showProgress = true;
+        showComplete = false;
+        progress = args.Progress;
+        await InvokeAsync(StateHasChanged);
+
+        // cancel upload
+        args.Cancel = cancelUpload;
+
+        // reset cancel flag
+        cancelUpload = false;
+    }
+
+    async Task DeleteCurrent()
+    {
+        await ContactInfoService.DeleteCurrentProfileImage(ContactInfoId);
+        UploadProfileImageEvent.NotifyUpload(this, Array.Empty<byte>());
+        DialogService.Close();
+    }
+
+    void CancelUpload()
+    {
+        cancelUpload = true;
+    }
+}

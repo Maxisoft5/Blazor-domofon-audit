@@ -1,0 +1,31 @@
+﻿@using ApplicationsAudit.Core.DTOs;
+@using ApplicationsAudit.Core.Interfaces;
+@using ApplicationsAudit.Core.Services.Events;
+@inject CreateDistrictEvent CreateDistrictEventService;
+@inject IDistrictsService DistrictsService;
+<div>
+    <div>
+        <RadzenTemplateForm TItem="DistrictDTO" Data=@district>
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Название</RadzenText>
+            <RadzenTextBox @bind-Value="district.Name" class="w-100" />
+            <RadzenText TextStyle="TextStyle.Subtitle2" TagName="TagName.H3">Город</RadzenText>
+            <RadzenTextBox Disabled="true" @bind-Value="district.City" class="w-100" />
+        </RadzenTemplateForm>
+    </div>
+    <div style="display: flex; flex-direction: row; margin-top: 20px; justify-content: center">
+        <RadzenButton Click="() => Create()" Style="margin-right: 20px" Text="Создать" Icon="check_circle" ButtonStyle="ButtonStyle.Success" />
+    </div>
+</div>
+
+@code {
+    private DistrictDTO district = new DistrictDTO()
+    {
+        City = "Воронеж"
+    };
+
+    public async void Create()
+    {
+        await DistrictsService.Create(district);
+        CreateDistrictEventService.NotifyCreateDistrict(this, district);
+    }
+}

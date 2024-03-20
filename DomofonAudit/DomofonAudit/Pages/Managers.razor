@@ -1,0 +1,138 @@
+﻿@page "/managers"; 
+@using ApplicationsAudit.Core.DTOs;
+@using ApplicationsAudit.Core.DTOs.Enums;
+@using ApplicationsAudit.Core.DTOs.Filters
+@using ApplicationsAudit.Core.Interfaces;
+@using ApplicationsAudit.Core.Services.Events;
+@using DomofonAudit.Components;
+@inject DialogService DialogService;
+@inject CreateManagerEvent CreateManagerEvent;
+@inject IManagerService ManagerService;
+@implements IDisposable;
+
+<RadzenButton Text="Добавить" Click="@Create" Style="margin-bottom: 20px;" />
+<RadzenDataGrid @ref=grid Data="@employees" Count="@count" LoadData="@LoadData" 
+                TItem="ManagerDTO" AllowVirtualization="true" Style="height:450px"
+                FilterMode="FilterMode.Simple"
+                AllowFiltering="true"
+                AllowSorting="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="ManagerDTO" Property="ManagerRole.Role" Title="Роль" Width="100px" />
+        <RadzenDataGridColumn TItem="ManagerDTO" Property="ManagerInfo.ContactInfo.FirstName" Title="Имя" Width="70px" />
+        <RadzenDataGridColumn TItem="ManagerDTO" Property="ManagerInfo.ContactInfo.LastName" Title="Фамилия" Width="80px" />
+        <RadzenDataGridColumn TItem="ManagerDTO" Property="ManagerInfo.ContactInfo.Email" Title="Почта" Width="100px" />
+        <RadzenDataGridColumn TItem="ManagerDTO" Property="ManagerInfo.ContactInfo.MobilePhone1" Title="Мобильный телефон 1" Width="90px" />
+        <RadzenDataGridColumn TItem="ManagerDTO" Property="ManagerInfo.ContactInfo.MobilePhone2" Title="Мобильный телефон 2" Width="90px" />
+        <RadzenDataGridColumn Sortable="false" Filterable="false" TItem="ManagerDTO" Property="Id" Title="Детали" Width="100px">
+            <Template Context="data">
+                <RadzenButton ButtonStyle="ButtonStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter"
+                              Icon="info" class="m-1"
+                              Click=@( async () => await OpenOrder(data.Id)) Text="Просмотр" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    RadzenDataGrid<ManagerDTO> grid;
+    int count;
+    List<ManagerDTO> employees;
+    IEnumerable<int> pageSizeOptions = new int[] { 10, 20, 30 };
+    bool isLoading = false;
+    string pagingSummaryFormat = "Displaying page {0} of {1} <b>(total {2} records)</b>";
+
+    protected override void OnInitialized()
+    {
+        CreateManagerEvent.CreateManager -= AddManagerHandler;
+        CreateManagerEvent.CreateManager += AddManagerHandler;
+    }
+
+    private async void AddManagerHandler(object sender, ManagerDTO manager)
+    {
+        employees.Add(manager);
+        DialogService.Close();
+        await grid.Reload();
+    }
+
+    public async Task OpenOrder(Guid id)
+    {
+        var parameters = new Dictionary<string, object>()
+        {
+            { "ManagerId", id }
+        };
+        await DialogService.OpenAsync<ViewManager>("Данные менеджера", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-application-dialog",
+            Style = "max-width: 900px; max-height: 910px; width: 90%; height: 93%;"
+        }, parameters: parameters);
+    }
+
+    public void Dispose()
+    {
+        CreateManagerEvent.CreateManager -= AddManagerHandler;
+    }
+
+    async Task Create()
+    {
+        await DialogService.OpenAsync<CreateManager>("Добавить менеджера", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-application-dialog",
+            Style = "max-width: 900px; max-height: 910px; width: 90%; height: 93%;"
+        });
+    }
+
+    async Task LoadData(LoadDataArgs args)
+    {
+        isLoading = true;
+        var filters = new ManagersFiltersSortsDTO();
+        if (args.Filters.Any())
+        {
+            var roleFilter = args.Filters.FirstOrDefault(x => x.Property == "ManagerRole.Role");
+            if (roleFilter != null)
+            {
+                filters.Role = (Roles)roleFilter.FilterValue;
+            }
+            var firstNameFilter = args.Filters.FirstOrDefault(x => x.Property == "ManagerInfo.ContactInfo.FirstName");
+            if (firstNameFilter != null)
+            {
+                filters.FirstName = firstNameFilter.FilterValue.ToString(); 
+            }
+            var lastNameFilter = args.Filters.FirstOrDefault(x => x.Property == "ManagerInfo.ContactInfo.LastName");
+            if (lastNameFilter != null)
+            {
+                filters.LastName = lastNameFilter.FilterValue.ToString();
+            }
+            var emailFilter = args.Filters.FirstOrDefault(x => x.Property == "ManagerInfo.ContactInfo.Email");
+            if (emailFilter != null)
+            {
+                filters.Email = emailFilter.FilterValue.ToString();
+            }
+            var phone1Filter = args.Filters.FirstOrDefault(x => x.Property == "ManagerInfo.ContactInfo.MobilePhone1");
+            if (phone1Filter != null)
+            {
+                filters.PhoneNumber1 = phone1Filter.FilterValue.ToString();
+            }
+            var phone2Filter = args.Filters.FirstOrDefault(x => x.Property == "ManagerInfo.ContactInfo.MobilePhone2");
+            if (phone2Filter != null)
+            {
+                filters.PhoneNumber2 = phone2Filter.FilterValue.ToString();
+            }
+
+        }
+        filters.Take = args.Top.HasValue ? args.Top.Value : 0;
+        filters.Skip = args.Skip.HasValue ? args.Skip.Value : 0;
+        var managersResult = await ManagerService.GetManagers(filters);
+        count = await ManagerService.GetManagersCount(filters);
+        employees = managersResult.ToList();
+        isLoading = false;
+    }
+}
+

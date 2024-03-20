@@ -1,0 +1,107 @@
+﻿@page "/applications-table"
+@using ApplicationsAudit.Core.DTOs
+@using ApplicationsAudit.Core.DTOs.Filters
+@using ApplicationsAudit.Core.Interfaces
+@using ApplicationsAudit.Core.Services.Events
+@using DomofonAudit.Components
+@inject IApplicationService ApplicationService;
+@inject DialogService DialogService;
+@inject ApplicationEvents CreateApplicationEvent;
+
+<RadzenButton Text="Добавить" Click="@Create" Style="margin-bottom: 20px;" />
+<RadzenDataGrid @ref=grid Data="@applications" Count="@count" LoadData="@LoadData"
+                TItem="ApplicationDTO" AllowVirtualization="true" Style="height:450px"
+                FilterMode="FilterMode.Simple"
+                AllowFiltering="true"
+                AllowSorting="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="ApplicationDTO" Property="Title" Title="Заголовок" Width="70px" />
+        <RadzenDataGridColumn TItem="ApplicationDTO" Property="Description" Title="Описание" Width="70px" />
+        <RadzenDataGridColumn TItem="ApplicationDTO" Property="Status" Title="Статус заявки" Width="90px" />
+        <RadzenDataGridColumn TItem="ApplicationDTO" Property="CreatedAt" Title="Дата создания" Width="80px" />
+        <RadzenDataGridColumn TItem="ApplicationDTO" Property="ResolvedDate" Title="Дата закрытия" Width="80px" />
+        <RadzenDataGridColumn TItem="ApplicationDTO" Property="LastUpdateAt" Title="Дата последнего обновления" Width="80px" />
+        <RadzenDataGridColumn Sortable="false" Filterable="false" TItem="ApplicationDTO" Property="Id" Title="Детали" Width="100px">
+            <Template Context="data">
+                <RadzenButton ButtonStyle="ButtonStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter"
+                              Icon="info" class="m-1"
+                              Click=@( async () => await OpenApplication(data.Id)) Text="Просмотр" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    List<ApplicationDTO> applications;
+    RadzenDataGrid<ApplicationDTO> grid;
+    int count;
+    bool isLoading = false;
+
+    public async Task OpenApplication(Guid id)
+    {
+        var openApplicationParams = new Dictionary<string, object>();
+
+        var application = await ApplicationService.GetById(id);
+
+        openApplicationParams.Add("application", application);
+
+        var createDialog = await DialogService.OpenAsync<ViewApplication>("Просмотр заявки", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-application-dialog",
+            Style = "max-width: 1500px; max-height: 810px; width: 90%; height: 75%;"
+        }, parameters: openApplicationParams);
+    }
+
+    protected override void OnInitialized()
+    {
+        CreateApplicationEvent.CreateApplication += async (sender, application) =>
+        {
+            applications.Add(application);
+            DialogService.Close();
+            await grid.Reload();
+        };
+        CreateApplicationEvent.UpdateApplication += async (sender, application) =>
+        {
+            var toUpdate = applications.Find(x => x.Id == application.Id);
+            if (toUpdate != null)
+            {
+                applications.Remove(toUpdate);
+                applications.Add(application);
+            }
+            DialogService.Close();
+            await grid.Reload();
+        };
+    }
+
+    async Task Create()
+    {
+        var createDialog = await DialogService.OpenAsync<CreateApplication>("Добавить заявку", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-application-dialog",
+            Style = "max-width: 900px; max-height: 910px; width: 90%; height: 93%;"
+        });
+    }
+
+    async Task LoadData(LoadDataArgs args)
+    {
+        var filters = new ApplicationTableFiltersDTO();
+        var applicationsResult = await ApplicationService.GetForTable(filters);
+        if (applicationsResult != null)
+        {
+            count = await ApplicationService.GetApplicationsCount(filters);
+            applications = applicationsResult.Applications ?? new List<ApplicationDTO>();
+        }
+    }
+
+
+}
+
+

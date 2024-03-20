@@ -1,0 +1,260 @@
+﻿@using ApplicationsAudit.Core.DTOs
+@using ApplicationsAudit.Core.Interfaces
+@using ApplicationsAudit.Core.Services.Events
+@using ApplicationsAudit.Domain.Applications
+@using System.Collections.ObjectModel
+@inject IClientsService ClientsService;
+@inject IMasterService MasterService;
+@inject IDistrictsService DistrictsService;
+@inject IManagerService ManagerService;
+@inject IApplicationService ApplicationService;
+@inject DialogService DialogService;
+@inject ApplicationEvents ApplicationEvent;
+
+<RadzenTemplateForm Data="@application" Submit="@((ApplicationDTO appl) => { SaveApplicationChanges(appl); })">
+    <RadzenRow Gap="2rem" Class="rz-p-0 rz-p-lg-4">
+        <RadzenColumn>
+            <RadzenStack>
+                <RadzenFieldset Text="Информация заявки">
+                    <RadzenStack Gap="1rem">
+                        <RadzenRow AlignItems="AlignItems.Center">
+                            <RadzenColumn Size="12" SizeMD="4">
+                                <RadzenLabel Text="Название" Component="Title" />
+                                <RadzenTextBox @bind-Value=@application.Title Name="Title" />
+                            </RadzenColumn>
+                        </RadzenRow>
+                        <RadzenRow AlignItems="AlignItems.Center">
+                            <RadzenColumn Size="12" SizeMD="4">
+                                <RadzenLabel Text="Описание" Component="Description" />
+                                <RadzenTextArea @bind-Value=@application.Description Name="Description" />
+                            </RadzenColumn>
+                        </RadzenRow>
+                        <RadzenRow AlignItems="AlignItems.Center">
+                            <RadzenColumn Size="12" SizeMD="4">
+                                <RadzenLabel Style="width:150px;" Text="Дата создания" Component="CreatedAt" />
+                                <RadzenTextBox ReadOnly=true @bind-Value=@CreatedAt Name="CreatedAt" />
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+                </RadzenFieldset>
+            </RadzenStack>
+        </RadzenColumn>
+        <RadzenColumn>
+            <RadzenStack>
+                <RadzenFieldset Text="Информация заявки">
+                    <RadzenStack Gap="1rem"> 
+                        <RadzenRow AlignItems="AlignItems.Center">
+                            <RadzenColumn Size="12" SizeMD="4">
+                                <RadzenLabel Style="width:150px;" Text="Дата последнего обновления" Component="LastUpdateAt" />
+                                <RadzenDatePicker TValue="DateTime?" @bind-Value=application.LastUpdateAt Style="width:250px;" Name="LastUpdateDate" ShowCalendarWeek />
+                            </RadzenColumn>
+                        </RadzenRow>
+                        <RadzenRow AlignItems="AlignItems.Center">
+                            <RadzenColumn Size="12" SizeMD="4">
+                                <RadzenLabel Style="width:150px;" Text="Статус заявки" Component="Status" />
+                                <RadzenDropDown AllowClear="true"
+                                                @bind-Value=application.Status
+                                                Name="Status"
+                                                AllowFiltering="statusDisabled"
+                                                Data=@statusesDropDown
+                                                Style="margin-right: 10px" />
+                            </RadzenColumn>
+                        </RadzenRow>
+                        <RadzenRow AlignItems="AlignItems.Center">
+                            <RadzenColumn Size="12" SizeMD="4">
+                                <RadzenLabel Style="width:150px;" Text="Дата закрытия" Component="ResolvedDate" />
+                                <RadzenDatePicker Style="width:250px;" TValue="DateTime?" @bind-Value=application.ResolvedDate Name="ResolveDate" ShowCalendarWeek />
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+                </RadzenFieldset>
+            </RadzenStack>
+        </RadzenColumn>
+        <RadzenColumn>
+            <RadzenStack>
+                <RadzenFieldset Text="Отвественные">
+                    <RadzenStack Gap="1rem">
+                        <RadzenRow AlignItems="AlignItems.Center">
+                            <RadzenColumn Size="12" SizeMD="4">
+                                <RadzenLabel Text="Клиент" Component="Client" />
+                                <RadzenDropDown AllowClear="true"
+                                                @bind-Value=application.RequestedBy
+                                                LoadData=@LoadClients
+                                                AllowFiltering="true"
+                                                Disabled="clientsDisabled"
+                                                Data=@clientsDropDown
+                                                Name="Client"
+                                                TextProperty="ContactInfo.FullName"
+                                                ValueProprty="ContactInfo.FullName" />
+                            </RadzenColumn>
+                        </RadzenRow>
+                        <RadzenRow AlignItems="AlignItems.Center">
+                            <RadzenColumn Size="12" SizeMD="4">
+                                <RadzenLabel Style="width:150px;" Text="Менеджер" Component="AssignedManager" />
+                                <RadzenDropDown AllowClear="true" @bind-Value=application.AssignedManager
+                                                LoadData=@LoadManagers
+                                                AllowFiltering="true"
+                                                Disabled="managersDisabled"
+                                                Data=@managersDropDown
+                                                TextProperty="ManagerInfo.ContactInfo.FullName"
+                                                ValueProprty="Id" />
+                            </RadzenColumn>
+                        </RadzenRow>
+                        <RadzenRow AlignItems="AlignItems.Center">
+                            <RadzenColumn Size="12" SizeMD="4">
+                                <RadzenLabel Style="width:150px;" Text="Мастер" Component="AssignedMaster" />
+                                <RadzenDropDown AllowClear="true"
+                                                @bind-Value=application.AssignedMaster
+                                                LoadData=@LoadMasters
+                                                AllowFiltering="true"
+                                                Disabled="mastersDisabled"
+                                                Data=@mastersDropDown
+                                                TextProperty="MasterInfo.ContactInfo.FullName"
+                                                ValueProprty="Id" />
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+                </RadzenFieldset>
+            </RadzenStack>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenStack>
+                @if (application.Comments is not null)
+                {
+                    <RadzenFieldset Text="Comments">
+                        <RadzenStack Gap="1rem">
+                            @foreach (var comment in application.Comments)
+                            {
+                                <RadzenRow AlignItems="AlignItems.Center">
+                                    <RadzenColumn Size="12" SizeMD="3">
+                                        <RadzenLabel Text=@comment.CreatedBy Component="Descritpion" />
+                                    </RadzenColumn>
+                                    <RadzenColumn Size="12" SizeMD="9">
+                                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" 
+                                        Wrap="FlexWrap.Wrap" Gap="0.5rem">
+                                            <RadzenTextArea Name="Description" aria-label="Description" />
+                                            <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete_forever" Text="Locate store"></RadzenButton>
+                                        </RadzenStack>
+                                    </RadzenColumn>
+                                </RadzenRow>
+                            }
+                        </RadzenStack>
+                    </RadzenFieldset>
+                }
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Center" Gap="1rem" Class="rz-mt-8 rz-mb-4">
+        <RadzenButton ButtonType="ButtonType.Submit" Size="ButtonSize.Large" Icon="save" Text="Save" />
+        <RadzenButton ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Large" Icon="cancel" Text="Cancel" Click="@Cancel" />
+    </RadzenStack>
+</RadzenTemplateForm>
+
+@code {
+
+    [Parameter]
+    public ApplicationDTO application { get; set; }
+
+    bool statusDisabled = false;
+    List<ApplicationStatus> statusesDropDown = new List<ApplicationStatus>();
+
+    List<ClientDTO> clients = new List<ClientDTO>();
+    List<ClientDTO> clientsDropDown = new List<ClientDTO>();
+    bool clientsDisabled = true;
+
+    bool managersDisabled = true;
+    List<ManagerDTO> managers = new List<ManagerDTO>();
+    List<ManagerDTO> managersDropDown = new List<ManagerDTO>();
+
+    List<MasterDTO> masters = new List<MasterDTO>();
+    List<MasterDTO> mastersDropDown = new List<MasterDTO>();
+    bool mastersDisabled = true;
+
+    bool districtsDisabled = true;
+    List<DistrictDTO> districts = new List<DistrictDTO>();
+    List<DistrictDTO> districtsDropDownList = new List<DistrictDTO>();
+
+    string CreatedAt = "";
+    string LastUpdateDate = "";
+    string ResolveDate = "";
+
+    public async void SaveApplicationChanges(ApplicationDTO application)
+    {
+        var updated = await ApplicationService.Update(application.Id, application);
+        ApplicationEvent.NotifyUpdateApplication(this, updated);
+        DialogService.Close();
+    }
+
+    public void Cancel()
+    {
+        DialogService.Close();
+    }
+
+    public void LoadStatused()
+    {
+
+    }
+
+    public async void LoadClients(LoadDataArgs args)
+    {
+        if (args.Filter != null)
+        {
+            var clients = await ClientsService.LoadClientsForDropDown(args.Filter);
+            clientsDropDown = clients.ToList();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async void LoadManagers(LoadDataArgs args)
+    {
+        if (args.Filter != null)
+        {
+            var filteredManagers = managers.Where(x => x.Id.ToString().Contains(args.Filter));
+            managersDropDown = filteredManagers.ToList();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async void LoadMasters(LoadDataArgs args)
+    {
+        if (args.Filter != null)
+        {
+            var filteredMaster = masters.Where(x => x.Id.ToString().Contains(args.Filter));
+            mastersDropDown = filteredMaster.ToList();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var allDistricts = await DistrictsService.GetAll();
+        var listDistricts = allDistricts.ToList();
+        var allMasters = await MasterService.GetAll();
+        var mastersList = allMasters.ToList();
+        var clients = await ClientsService.LoadClientsForDropDown("");
+        clientsDropDown = clients.ToList();
+        clientsDisabled = false;
+        managersDisabled = true;
+        var managersList = await ManagerService.GetForDropDown();
+        managersDropDown = new List<ManagerDTO>(managersList);
+        managers = new List<ManagerDTO>(managersList);
+        managersDisabled = false;
+        mastersDisabled = true;
+        masters = new List<MasterDTO>(mastersList);
+        mastersDropDown = new List<MasterDTO>(mastersList);
+        mastersDisabled = false;
+        districtsDisabled = true;
+        districtsDropDownList = new List<DistrictDTO>(listDistricts);
+        districts = new List<DistrictDTO>(listDistricts);
+        districtsDisabled = false;
+        statusDisabled = true;
+        var statuses = ApplicationService.GetApplicationStatusesDropdown();
+        statusesDropDown = statuses.Select(x => x.Value).ToList();
+        statusDisabled = false;
+
+        CreatedAt = application.CreatedAt.ToString();
+        LastUpdateDate = application.LastUpdateAt.HasValue ? application.LastUpdateAt.Value.ToString() : "";
+        ResolveDate =  application.ResolvedDate.HasValue ? application.ResolvedDate.Value.ToString() : "";
+        await InvokeAsync(StateHasChanged);
+    }
+}

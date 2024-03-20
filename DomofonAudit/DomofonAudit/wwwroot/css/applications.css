@@ -1,0 +1,18 @@
+﻿.notAssignedColumn, .assignedColumn, .completedColumn, .closedColumn {
+    margin-left: auto;
+    margin-right: auto;
+    min-width: 18rem;
+    min-height: 300px;
+}
+
+.application-card {
+    width: 18rem;
+    margin-bottom: 20px;
+}
+
+.application-card-container {
+    display: flex;
+    flex-direction: column;
+    margin: 10px;
+    width: 18rem;
+}

@@ -1,0 +1,95 @@
+is_global = true
+build_property.TargetFramework = net7.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = true
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.RootNamespace = DomofonAudit
+build_property.RootNamespace = DomofonAudit
+build_property.ProjectDir = C:\Users\Maksym\source\repos\DomofonAudit\DomofonAudit\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 7.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = C:\Users\Maksym\source\repos\DomofonAudit\DomofonAudit
+build_property._RazorSourceGeneratorDebug = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/App.razor]
+build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Components/CreateAddress.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDcmVhdGVBZGRyZXNzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Components/CreateApplication.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDcmVhdGVBcHBsaWNhdGlvbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Components/CreateClient.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDcmVhdGVDbGllbnQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Components/CreateContactInfo.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDcmVhdGVDb250YWN0SW5mby5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Components/CreateDistrict.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDcmVhdGVEaXN0cmljdC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Components/CreateManager.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDcmVhdGVNYW5hZ2VyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Components/CreateMaster.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDcmVhdGVNYXN0ZXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Components/ViewApplication.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xWaWV3QXBwbGljYXRpb24ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Components/ViewManager.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xWaWV3TWFuYWdlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Pages/ApplicationsTable.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQXBwbGljYXRpb25zVGFibGUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Pages/Dashboard.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRGFzaGJvYXJkLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Pages/Managers.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWFuYWdlcnMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = X0ltcG9ydHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Shared/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXE1haW5MYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-xqylodhgjm
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Pages/Error.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXJyb3IuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Pages/Login.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTG9naW4uY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Pages/_Host.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX0hvc3QuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Maksym/source/repos/DomofonAudit/DomofonAudit/Pages/_Layout.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX0xheW91dC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 

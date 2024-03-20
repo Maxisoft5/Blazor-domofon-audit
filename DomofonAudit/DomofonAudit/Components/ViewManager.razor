@@ -1,0 +1,217 @@
+﻿@using ApplicationsAudit.Core.DTOs;
+@using ApplicationsAudit.Core.Interfaces;
+@using ApplicationsAudit.Core.Services.Events
+@using DomofonAudit.Components.Profile
+@inject IManagerService ManagerService;
+@inject DialogService DialogService;
+@inject UploadProfileImageEvent UploadProfileImageEvent;
+@implements IDisposable;
+
+@code {
+    [Parameter]
+    public Guid ManagerId { get; set; }
+
+    [Parameter]
+    public byte[]? ProfileImage { get; set; }
+
+    public ManagerDTO? Manager { get; set; }
+    public ContactInfoDTO? ContactInfo { get; set; }
+    public ManagerInfoDTO? ManagerInfo { get; set; }
+    public WorkingTimeDTO? WorkingTime { get; set; }
+    public ManagerRoleDTO? ManagerRole { get; set; }
+    public string? WorkingDaysNames { get; set; }
+    public const string DefaultImgProfile = "../images/profile-photo-default.png";
+    public string? ProfileImageUrl = DefaultImgProfile;
+
+    protected override async void OnInitialized()
+    {
+        Manager = await ManagerService.GetById(ManagerId);
+        ContactInfo = Manager.ManagerInfo.ContactInfo;
+        ManagerInfo = Manager.ManagerInfo;
+        WorkingTime = Manager.WorkingTime;
+        ManagerRole = Manager.ManagerRole;
+        if (WorkingTime != null)
+        {
+            SetWorkingTimesString();
+        }
+        UploadProfileImageEvent.OnUploadProfileImage -= SubscribeOnImageUpload;
+        UploadProfileImageEvent.OnUploadProfileImage += SubscribeOnImageUpload;
+        string imreBase64Data = "";
+        if (ProfileImage is not null)
+        {
+            imreBase64Data = Convert.ToBase64String(ProfileImage);
+        }
+        else
+        {
+            if (ContactInfo.ProfileImage is not null && ContactInfo.ProfileImage.Any())
+            {
+                imreBase64Data = Convert.ToBase64String(ContactInfo.ProfileImage);
+                string imgDataURL = string.Format("data:image/png;base64,{0}", imreBase64Data);
+                ProfileImageUrl = imgDataURL;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        UploadProfileImageEvent.OnUploadProfileImage -= SubscribeOnImageUpload;
+    }
+
+    private async void SubscribeOnImageUpload(object sender, byte[] image)
+    {
+        if (image is not null && image.Any())
+        {
+            string imgDataURL = string.Format("data:image/png;base64,{0}", Convert.ToBase64String(image));
+            ProfileImageUrl = imgDataURL;
+        }
+        else
+        {
+            ProfileImageUrl = DefaultImgProfile;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void SetWorkingTimesString()
+    {
+        WorkingDaysNames = "";
+        if (WorkingTime == null)
+        {
+            return;
+        }
+
+        if (WorkingTime.Monday)
+        {
+            WorkingDaysNames += "Понедельник";
+        }
+        if (WorkingTime.Tuesday)
+        {
+            InsertCommaIfNeed(WorkingDaysNames);
+            WorkingDaysNames += "Вторник";
+        }
+        if (WorkingTime.Wednesday)
+        {
+            InsertCommaIfNeed(WorkingDaysNames);
+            WorkingDaysNames += "Среда";
+        }
+        if (WorkingTime.Thursday)
+        {
+            InsertCommaIfNeed(WorkingDaysNames);
+            WorkingDaysNames += "Четверг";
+        }
+        if (WorkingTime.Friday)
+        {
+            InsertCommaIfNeed(WorkingDaysNames);
+            WorkingDaysNames += "Пятница";
+        }
+        if (WorkingTime.Saturday)
+        {
+            InsertCommaIfNeed(WorkingDaysNames);
+            WorkingDaysNames += "Суббота";
+        }
+        if (WorkingTime.Sunday)
+        {
+            InsertCommaIfNeed(WorkingDaysNames);
+            WorkingDaysNames += "Воскресенье";
+        }
+
+        if (string.IsNullOrEmpty(WorkingDaysNames))
+        {
+            WorkingDaysNames = "Нет графика"; 
+        }
+    }
+
+    private void InsertCommaIfNeed(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            WorkingDaysNames += ", ";
+        }
+    }
+
+    public async Task OpenUploadingImage()
+    {
+        var parameters = new Dictionary<string, object>()
+        {
+            {"ContactInfoId", ContactInfo?.Id }
+        };
+        await DialogService.OpenAsync<UploadProfileImage>("Загрузка фото профиля", options: new DialogOptions()
+        {
+            ShowClose = true,
+            Draggable = false,
+            CloseDialogOnEsc = false,
+            ShowTitle = true,
+            CssClass = "add-application-dialog",
+            Style = "max-width: 900px; max-height: 910px;"
+        }, parameters: parameters);
+    }
+
+}
+
+<RadzenCard Class="rz-my-12 rz-mx-auto" Style="width: 100%;">
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Start" Gap="1rem" Class="rz-p-4">
+        <RadzenImage Click="(async () => await OpenUploadingImage())"
+           Path="@ProfileImageUrl" Style="width: 100px; height: 100px; border-radius: 50%; cursor:pointer" />
+        <RadzenStack Gap="0">
+            <RadzenText TextStyle="TextStyle.Overline" class="rz-display-flex rz-mt-2 rz-my-0">Полное имя</RadzenText>
+            <RadzenText Style="word-break:break-all" TextStyle="TextStyle.Body1"><b>@ContactInfo?.FullName</b></RadzenText>
+            @if (!string.IsNullOrEmpty(ContactInfo?.Email))
+            {
+                <RadzenText TextStyle="TextStyle.Overline" class="rz-display-flex rz-mt-2 rz-my-0">Email</RadzenText>
+                <RadzenText Style="word-break:break-all" TextStyle="TextStyle.Body1"><b>@ContactInfo?.Email</b></RadzenText>
+            }
+            @if (ManagerRole != null)
+            {
+                <RadzenText TextStyle="TextStyle.Overline" class="rz-display-flex rz-mt-2 rz-my-0">Роль</RadzenText>
+                <RadzenText Style="word-break:break-all" TextStyle="TextStyle.Body1"><b>@ManagerRole?.RoleName</b></RadzenText>
+            }
+            @if (!string.IsNullOrEmpty(ContactInfo?.MobilePhone1))
+            {
+                <RadzenText TextStyle="TextStyle.Overline" class="rz-display-flex rz-mt-2 rz-my-0">Мобильный #1</RadzenText>
+                <RadzenText Style="word-break:break-all" TextStyle="TextStyle.Body1"><b>@ContactInfo?.MobilePhone1</b></RadzenText>
+            }
+            @if (!string.IsNullOrEmpty(ContactInfo?.MobilePhone2))
+            {
+                <RadzenText TextStyle="TextStyle.Overline" class="rz-display-flex rz-mt-2 rz-my-0">Мобильный #2</RadzenText>
+                <RadzenText Style="word-break:break-all" TextStyle="TextStyle.Body1"><b>@ContactInfo?.MobilePhone2</b></RadzenText>
+            }
+        </RadzenStack>
+    </RadzenStack>
+    <RadzenCard class="rz-background-color-primary-light rz-shadow-0 rz-border-radius-0 rz-p-8" style="margin: 1rem calc(-1 * var(--rz-card-padding));">
+        <RadzenRow RowGap="0">
+            <RadzenColumn SizeSM="4">
+                <RadzenText TextStyle="TextStyle.Overline" class="rz-color-on-primary-light rz-display-flex rz-mt-4 rz-mb-0">Дата начала работы</RadzenText>
+                <RadzenText Style="word-break:break-all" TextStyle="TextStyle.Body1" class="rz-color-on-primary-light"><b>@ManagerInfo?.StartedWorkAt.ToString("dd.MM.yyyy")</b></RadzenText>
+                @if (ManagerInfo != null && ManagerInfo.IsFired && ManagerInfo.FiredDate.HasValue)
+                {
+                    <RadzenText TextStyle="TextStyle.Overline" class="rz-color-on-primary-light rz-display-flex rz-mt-4 rz-mb-0">Дата окончания работы</RadzenText>
+                    <RadzenText Style="word-break:break-all" TextStyle="TextStyle.Body1" class="rz-color-on-primary-light"><b>@ManagerInfo?.FiredDate.Value.ToString("dd.MM.yyyy")</b></RadzenText>
+                }
+                @if (ManagerInfo != null && ManagerInfo.MonthlySalary != 0)
+                {
+                    <RadzenText TextStyle="TextStyle.Overline" class="rz-color-on-primary-light rz-display-flex rz-mt-4 rz-mb-0">Месячная оплата</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body1" class="rz-color-on-primary-light"><b>@ManagerInfo?.MonthlySalary</b></RadzenText>
+                }
+            </RadzenColumn>
+            <RadzenColumn SizeSM="6">
+                <RadzenText TextStyle="TextStyle.Overline" class="rz-color-on-primary-light rz-display-flex rz-mt-4 rz-mb-0">Рабочие дни:</RadzenText>
+                <RadzenText Style="word-break:break-all" TextStyle="TextStyle.Body1" class="rz-color-on-primary-light"><b>@WorkingDaysNames</b></RadzenText>
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenCard>
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Start" Gap="0">
+        <RadzenRow RowGap="0">
+                <RadzenColumn SizeSM="4">
+                    <RadzenText TextStyle="TextStyle.Overline" class="rz-display-flex rz-mt-4 rz-mb-0">Количество открытых заявок:</RadzenText>
+                    <RadzenText Style="word-break:break-all" TextStyle="TextStyle.Body1"><b>5</b></RadzenText>
+                </RadzenColumn>
+                 <RadzenColumn SizeSM="4">
+                    <RadzenText TextStyle="TextStyle.Overline" class="rz-display-flex rz-mt-4 rz-mb-0">Количество закрытых заявок:</RadzenText>
+                    <RadzenText Style="word-break:break-all" TextStyle="TextStyle.Body1"><b>5</b></RadzenText>
+                </RadzenColumn>
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
